@@ -1,0 +1,18 @@
+{
+    "canvas": {
+      "width": 900,
+      "height": 500
+    },
+    "userBall": {
+      "x": 50,
+      "y": 450,
+      "radius": 10,
+      "mass": 10
+    },
+    "enemies": [
+      { "x": 300, "y": 200, "radius": 8, "mass": 5 },
+      { "x": 500, "y": 300, "radius": 12, "mass": 15 }
+    ]
+}
+  
+  

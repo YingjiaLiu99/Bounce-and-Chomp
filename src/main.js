@@ -1,31 +1,15 @@
 import Phaser, { Physics } from 'phaser';
+import GameScene from './scenes/GameScene';
+import levelData from './levels/level1.json';
 import './style.css';
 
-const sizes ={
-  width: 900,
-  height: 500
-}
-class GameScene extends Phaser.Scene {
-  constructor() {
-    super("scene-game");
-  }
-  preload(){}
-  create(){}
-  update(){}
-}
 const config = {
   type: Phaser.WEBGL,
-  width: sizes.width,
-  height: sizes.height,
-  canvas: gameCanvas,
-  physics: {
-    default: "arcade",
-    arcade: {
-      gravity: {y:speedDown},
-      debug: true
-    }
-  },
-  scene: [GameScene]
-}
+  width: levelData.canvas.width,
+  height: levelData.canvas.height,
+  backgroundColor: '#1d1d1d',
+  scene: [GameScene],
+  canvas: document.getElementById('gameCanvas')
+};
 
 const game = new Phaser.Game(config);
