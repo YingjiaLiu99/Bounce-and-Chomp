@@ -1,0 +1,48 @@
+:root {
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  --enmeyColor: #FFA384;
+  --selfColor: #74BDCB;
+  --bgColor: #F6EEE0;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  user-select: none;
+}
+
+html,body {
+  height: 100%;
+  overscroll-behavior: none;
+}
+
+body {
+  background-color: var(--bgColor);
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+}
+
+header,footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px 20px;
+}
+
+main {
+  flex:1;
+  display: flex;
+}
+
+#gameCanvas {
+  background-color: whitesmoke;
+  border: 1px solid black;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  z-index: 1;
+}

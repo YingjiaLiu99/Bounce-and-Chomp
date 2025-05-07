@@ -1,0 +1,31 @@
+import Phaser, { Physics } from 'phaser';
+import './style.css';
+
+const sizes ={
+  width: 900,
+  height: 500
+}
+class GameScene extends Phaser.Scene {
+  constructor() {
+    super("scene-game");
+  }
+  preload(){}
+  create(){}
+  update(){}
+}
+const config = {
+  type: Phaser.WEBGL,
+  width: sizes.width,
+  height: sizes.height,
+  canvas: gameCanvas,
+  physics: {
+    default: "arcade",
+    arcade: {
+      gravity: {y:speedDown},
+      debug: true
+    }
+  },
+  scene: [GameScene]
+}
+
+const game = new Phaser.Game(config);
