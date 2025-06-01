@@ -1,6 +1,7 @@
 import { GameConfig } from '../constants/GameConfig.js';
 import levelData from '../levels/level1.json';
 import PhysicsEngine from '../engine/PhysicsEngine.js';
+import GameHUD from '../components/GameHUD.js';
 import { UserBall, EnemyBall } from '../entities/Ball.js';
 
 export default class GameScene extends Phaser.Scene {
@@ -11,12 +12,28 @@ export default class GameScene extends Phaser.Scene {
   preload() {}
 
   create() {
+    // display the FPS 
+    this.fpsText = this.add.text(10, 10, '', {
+      fontSize: '16px',
+      color: '#ffffff',
+      fontFamily: 'Arial',
+      backgroundColor: '#000000aa',
+      padding: { x: 4, y: 2 }
+    });
+
     const { x, y, radius, mass } = levelData.userBall;
     this.userBall = new UserBall(x, y, radius, mass);
 
     this.enemyBalls = levelData.enemies.map(data =>
       new EnemyBall(data.x, data.y, data.radius, data.mass)
     );
+    this.enemyLabels = this.enemyBalls.map(enemy => {
+      return this.add.text(enemy.x, enemy.y, `${enemy.mass}`, {
+        fontSize: '14px',
+        color: '#ffffff',
+        fontFamily: 'Arial'
+      }).setOrigin(0.5);
+    });
 
     this.graphics = this.add.graphics();
     this.strengthBar = this.add.graphics({ x: 0, y: 0 });
@@ -28,12 +45,13 @@ export default class GameScene extends Phaser.Scene {
         backgroundColor: '#000000aa',
         padding: { x: 4, y: 2 }
     });
-
     this.strengthText.setVisible(false);
     this.isDragging = false;
     this.dragStart = null;
+    this.hud = new GameHUD(this, this.userBall, this.enemyBalls);
 
     this.input.on('pointerdown', (pointer) => {
+      if (this.userBall.getSpeed() > 0.05) return; // prevent drag if still moving
       const dx = pointer.x - this.userBall.x;
       const dy = pointer.y - this.userBall.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
@@ -77,12 +95,12 @@ export default class GameScene extends Phaser.Scene {
       const dy = this.dragStart.y - pointer.y;
       const dragDistance = Math.sqrt(dx * dx + dy * dy);
 
-      const MIN_DRAG_THRESHOLD = 10;
+      const MIN_DRAG_THRESHOLD = 5;
       if (dragDistance < MIN_DRAG_THRESHOLD) return;
 
       const canvasDiagonal = Math.sqrt(levelData.canvas.width ** 2 + levelData.canvas.height ** 2);
       const normalizedStrength = dragDistance / canvasDiagonal;
-      const maxVelocity = 400;
+      const maxVelocity = 100;
 
       this.userBall.vx = (dx / dragDistance) * normalizedStrength * maxVelocity;
       this.userBall.vy = (dy / dragDistance) * normalizedStrength * maxVelocity;
@@ -92,40 +110,75 @@ export default class GameScene extends Phaser.Scene {
   }
 
   update(time, delta) {
-    const deltaTime = delta / 1000;
-
-    this.userBall.updatePosition(deltaTime);
-    PhysicsEngine.applyFriction(this.userBall, GameConfig.frictionFactor, deltaTime);
+    //update the FPS
+    this.fpsText.setText(`FPS: ${Math.round(this.game.loop.actualFps)}`);    
+    // Update player movement and physics
+    this.userBall.updatePosition(delta);
+    PhysicsEngine.applyFriction(this.userBall, delta);
     PhysicsEngine.reflectIfHitWall(this.userBall, levelData.canvas.width, levelData.canvas.height, GameConfig.bounceDamping);
 
-    this.enemyBalls = this.enemyBalls.filter(enemy => {
+    // Handle collisions and cleanup
+    const newEnemies = [];
+    const newLabels = [];
+    for (let i = 0; i < this.enemyBalls.length; i++) {
+      const enemy = this.enemyBalls[i];
+      const label = this.enemyLabels[i];
+
       if (PhysicsEngine.checkCollision(this.userBall, enemy)) {
         if (this.userBall.mass >= enemy.mass) {
           this.userBall.grow(enemy.mass);
-          this.userBall.vx = 0;
-          this.userBall.vy = 0;
-          return false; // remove eaten enemy
+          label.destroy(); // Remove the label from screen
+          continue; // Enemy eaten, do not keep it
         } else {
-          console.log('Game Over!');
-          this.scene.restart();
+          this.showGameOver();
+          return; // Stop update loop if game over
         }
       }
-      return true;
-    });
+      // Keep enemies that weren't eaten
+      newEnemies.push(enemy);
+      newLabels.push(label);
+    }
+    // Update active enemies and labels
+    this.enemyBalls = newEnemies;
+    this.enemyLabels = newLabels;
 
-    this.draw();
+    this.draw(); // udpate positions and re-render
+
+    // WIN CONDITION check
+    if (this.enemyBalls.length === 0 && !this.winShown) {
+      this.add.text(levelData.canvas.width / 2, levelData.canvas.height / 2, 'You Win!', {
+        fontSize: '48px',
+        color: '#00ff00',
+        fontFamily: 'Arial'
+      }).setOrigin(0.5);
+      this.winShown = true;
+      //this.scene.pause();
+      return;
+    }
+
+    // 🔁 Update HUD with latest game state
+    this.hud.enemyBalls = this.enemyBalls;
+    this.hud.userBall = this.userBall;
+    this.hud.update();
   }
 
   draw() {
     this.graphics.clear();
 
+    // Draw user ball (green)
     this.graphics.fillStyle(0x00ff00);
     this.graphics.fillCircle(this.userBall.x, this.userBall.y, this.userBall.radius);
 
+    // Draw enemy balls (red) and update their mass label positions
     this.graphics.fillStyle(0xff0000);
-    for (const enemy of this.enemyBalls) {
+    this.enemyBalls.forEach((enemy, i) => {
       this.graphics.fillCircle(enemy.x, enemy.y, enemy.radius);
-    }
+      if (this.enemyLabels[i]) {
+        this.enemyLabels[i].setText(`${enemy.mass}`);
+        this.enemyLabels[i].setPosition(enemy.x, enemy.y);
+        this.children.bringToTop(this.enemyLabels[i]);
+      }
+    });
   }
 
   drawStrengthBar(normalizedStrength) {
@@ -168,5 +221,14 @@ export default class GameScene extends Phaser.Scene {
 
     this.arrowGraphics.lineStyle(2, 0x00bfff);
     this.arrowGraphics.strokeLineShape(new Phaser.Geom.Line(fromX, fromY, endX, endY));
+  }
+
+  showGameOver() {
+    this.add.text(levelData.canvas.width / 2, levelData.canvas.height / 2, 'Game Over!', {
+      fontSize: '48px',
+      color: '#ff0000',
+      fontFamily: 'Arial'
+    }).setOrigin(0.5);
+    //this.scene.pause();
   }
 }
